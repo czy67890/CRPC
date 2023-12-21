@@ -34,3 +34,60 @@ void crpc_event_engine::
     } 
 
 }
+
+void crpc_event_engine::ObjectGroupForkHandler::PrepFork()
+{
+    if(IsForkEnable()){
+
+        for(auto iter = forkables_.begin();
+                iter != forkables_.end();){
+            auto shared = iter->lock();
+            if(shared){
+                shared->PrepFork();
+                ++iter;
+            }
+            else{
+                // prev iter invalid
+                iter = forkables_.erase(iter);
+            }
+        }
+    }
+}
+
+void crpc_event_engine::ObjectGroupForkHandler::PostforkParent()
+{
+    if(IsForkEnable()){
+
+        for(auto iter = forkables_.begin();
+                iter != forkables_.end();){
+            auto shared = iter->lock();
+            if(shared){
+                shared->PostforkParent();
+                ++iter;
+            }
+            else{
+                // prev iter invalid
+                iter = forkables_.erase(iter);
+            }
+        }
+    }
+}
+
+void crpc_event_engine::ObjectGroupForkHandler::PostforkChild()
+{
+    if(IsForkEnable()){
+
+        for(auto iter = forkables_.begin();
+                iter != forkables_.end();){
+            auto shared = iter->lock();
+            if(shared){
+                shared->PostforkChild();
+                ++iter;
+            }
+            else{
+                // prev iter invalid
+                iter = forkables_.erase(iter);
+            }
+        }
+    }
+}

@@ -2,7 +2,7 @@
 #include <memory>
 #include <chrono>
 #include <unistd.h>
-#include <socket.h>
+#include <sys/socket.h>
 #include "crpc/non_copyable.h"
 namespace crpc_event_engine{
 
@@ -53,6 +53,20 @@ public:
     private:
         char address_[kMaxSizeBytes]{};
         socklen_t size_{0};
+    };
+
+    class EndPoint{
+    public:
+        
+        virtual ~EndPoint() = default;
+
+        struct ReadArgs{
+            int64_t read_hint_bytes;
+        };
+
+        
+
+
     };
 
 
