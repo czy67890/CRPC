@@ -3,7 +3,7 @@
 #include <chrono>
 #include <unistd.h>
 #include <sys/socket.h>
-#include "crpc/non_copyable.h"
+#include "non_copyable.h"
 namespace crpc_event_engine{
 
 
@@ -27,10 +27,10 @@ public:
     struct TaskHandle{
         /// @brief usually a point to the task
         /// 
-        intptr_t key[2];
+        intptr_t keys[2];
         static const TaskHandle kInvalid;
-        friend operator == (const TaskHandle &lsh ,const TaskHandle &rhs);
-        friend operator != (const TaskHandle &lsh,const TaskHandle &rhs);
+        friend bool operator == (const TaskHandle &lsh ,const TaskHandle &rhs);
+        friend bool operator != (const TaskHandle &lsh,const TaskHandle &rhs);
     };
 
 
@@ -47,7 +47,7 @@ public:
         ResolveAddr(const ResolveAddr &) = default;
 
         const struct sockaddr* address() const{
-            return reinterpret_cast<const struct sockaddr*>(address_)
+            return reinterpret_cast<const struct sockaddr*>(address_);
         }
 
     private:

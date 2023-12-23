@@ -6,12 +6,12 @@ namespace crpc_event_engine{
 
 }
 
-crpc_event_engine::operator==(const TaskHandle & lsh, const TaskHandle & rhs)
+bool crpc_event_engine::operator==(const TaskHandle & lsh, const TaskHandle & rhs)
 {
     return lsh.keys[0] == rhs.keys[0] && rhs.keys[1] == rhs.keys[1];
 }
 
-crpc_event_engine::operator!=(const TaskHandle & lsh, const TaskHandle & rhs)
+bool crpc_event_engine::operator!=(const TaskHandle & lsh, const TaskHandle & rhs)
 {
     return !(lsh == rhs);
 }
