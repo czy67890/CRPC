@@ -205,11 +205,31 @@ struct CopyConstructors{
         char tmpBuffer[kMinIntToStringSize];
         ltoa(i,tmpBuffer,10);
         return FromCopiedBuffer(tmpBuffer);
-    }
-
-
+    } 
 
 };
+
+
+template<typename Out>
+struct StaticConstruct{
+    static Out FromStaticString(const char * s){
+        return FromStaticBuffer(s,strlen(s));
+    }
+
+    static Out FromStaticString(std::string_view s){
+        return FromStaticBuffer(s.data(),s.size());
+    }
+
+    static Out FromStaticBuffer(const void * s,size_t len){
+        crpc_slice slice;
+        slice.
+    }
+
+};
+
+
+
+
 
 }
 
