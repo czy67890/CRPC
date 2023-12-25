@@ -10,27 +10,6 @@
 #include <string>
 #include <vector>
 
-
-//namespace std{
-//    template <>
-//    struct hash<std::string_view>
-//    {
-//        static constexpr uint64_t kHashBase = 131;
-//        static constexpr uint64_t kHashMod = 1e9 + 9;
-//        size_t operator()(const std::string_view &stv) const{
-//            //double hash to ensure the probability of hash collision
-//            // to be the minium
-//            /// this is the simpest implement
-//            size_t len = stv.length();
-//            uint64_t res = 0;
-//            for(int i = 0; i < stv.length() ;++ i){
-//                res = (res * kHashBase + (uint8_t)stv[i] ) %kHashMod;
-//            }
-//            return res;
-//        }
-//    };
-//}
-
 namespace crpc_util{
 
     struct CrpcSliceRefcount;

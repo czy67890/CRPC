@@ -2,8 +2,13 @@
 #include <memory>
 #include <chrono>
 #include <unistd.h>
+#include <functional>
 #include <sys/socket.h>
 #include "non_copyable.h"
+#include "crpc/status.h"
+#include "crpc/slice.h"
+#include "crpc/event_engine/slice_buffer.h"
+using crpc_util::SliceBuffer;
 namespace crpc_event_engine{
 
 
@@ -15,6 +20,7 @@ public:
 
     class Closure :public crpc_core::NonCopyable{
     public:
+
     Closure() = default;
 
     virtual  ~Closure() = default; 
@@ -36,18 +42,22 @@ public:
 
     using ConnectionHandle = TaskHandle;
 
-    class ResolveAddr{
+    class ResolvedAddr{
     public:
         static constexpr socklen_t kMaxSizeBytes = 128;
 
-        ResolveAddr(const sockaddr *addr,socklen_t size);
+        ResolvedAddr(const sockaddr *addr,socklen_t size);
 
-        ResolveAddr() = default;
+        ResolvedAddr() = default;
 
-        ResolveAddr(const ResolveAddr &) = default;
+        ResolvedAddr(const ResolvedAddr &) = default;
 
         const struct sockaddr* address() const{
             return reinterpret_cast<const struct sockaddr*>(address_);
+        }
+
+        size_t size()const{
+            return size_;
         }
 
     private:
@@ -64,7 +74,24 @@ public:
             int64_t read_hint_bytes;
         };
 
-        
+        virtual void Read(std::function<void(Status)> on_read,SliceBuffer *buffer,const ReadArgs *args) = 0;
+
+        struct WriteArgs{
+
+            void *sepcial{nullptr};
+
+            size_t max_frame_size;
+
+        };
+
+        virtual void Write(std::function<void(Status)> on_Write,SliceBuffer *buffer,const WriteArgs *write_arg) = 0;
+
+        virtual const ResolvedAddr& GetPeerAddr() const = 0;
+
+        virtual const ResolvedAddr& GetLocalAddr() const = 0;
+
+        virtual void * QueryExtension(std::string_view id){return nullptr;}
+
 
 
     };
