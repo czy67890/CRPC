@@ -20,7 +20,7 @@ namespace crpc_event_engine{
         }
 
 
-        explicit MemoryRequest(size_t n)
+        MemoryRequest(size_t n)
                 :min_(n),max_(n)
             {
                 min_ = std::min(MaxAllocated(),min_);

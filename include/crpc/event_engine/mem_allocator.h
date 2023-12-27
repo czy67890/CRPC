@@ -6,8 +6,9 @@
 #define CZYSERVER_MEM_ALLOCATOR_H
 #include "crpc/event_engine/mem_request.h"
 #include <memory>
+#include <vector>
 #include "non_copyable.h"
-#include "crpc/event_engine/internal/mem_allocatoe_impl.h"
+#include "crpc/event_engine/internal/mem_allocator_impl.h"
 
 namespace crpc_event_engine{
 
@@ -91,44 +92,141 @@ namespace crpc_event_engine{
         return Reservation(allocator_, Reserve(req));
     }
 
+    template<typename T>
+    struct auto_release_deleter{
+        auto_release_deleter(std::shared_ptr<MemoryAllocatorImpl> sptr)
+            : mem_allocator_(std::move(sptr))
+        {
 
+        }
 
-
-    /// such a beautiful implement
+        void operator()(T * ptr) const{
+            delete ptr;
+            mem_allocator_->Release(sizeof(auto_release_deleter) + sizeof(T));
+        }
+        private:
+        std::shared_ptr<MemoryAllocatorImpl> mem_allocator_;
+    };
     template <typename T,typename ...Args>
+    std::unique_ptr<T> MakeUnique(Args&&... args){
+        auto_release_deleter<T> deleter{allocator_};
+        Reserve(sizeof(T) + sizeof(auto_release_deleter<T>));
+        T * ptr = new T (std::forward<Args>(args)...);
+        std::unique_ptr<T> tmpPtr(ptr,deleter);
+        return tmpPtr;
+    }
 
-    std::enable_if<std::has_virtual_destructor_v<T>,T*>::type New(Args&& ... arg)
-    {
-        class Wrapper final:public  T{
+    crpc_slice MakeSlice(MemoryRequest req) {
+        return allocator_->MakeSlice(req);
+    }
+
+    template<typename T>
+    class Container{
         public:
-            explicit Wrapper(std::shared_ptr<MemoryAllocatorImpl> allc,Args&& ...arg)
-                :T(std::forward<Args>(arg)...),ptr(allc)
+        using value_type = T;
+            explicit  Container(MemoryAllocator * allc)
+                :allocator_(allc)
             {
             }
 
-            ~Wrapper(){
-                ptr->Release(sizeof(Wrapper));
+            template<typename U>
+            explicit Container(const Container<U>& other)
+                :allocator_(other.allocator_)
+            {
             }
 
-        private:
-            std::shared_ptr<MemoryAllocatorImpl> ptr;
+
+            MemoryAllocator * underlying_allocator() const{
+                return allocator_;
+            }
+
+            T *allocate(size_t n){
+                allocator_->Reserve(n *sizeof(T));
+                return static_cast<T>(::operator new(n *sizeof(T)));
+            }
+
+            void deallocate(T * ptr,size_t n){
+                ::operator delete (ptr);
+                allocator_->Release(n *sizeof(T));
+            }
+
+
+    private:
+        MemoryAllocator *allocator_;
+
         };
 
-        Release(sizeof(Wrapper));
-        return new Wrapper(allocator_,std::forward(arg)...);
-    }
+
+    /// such a beautiful implement
+//    template <typename T,typename ...Args>
+//
+//    std::enable_if<std::has_virtual_destructor_v<T>,T*>::type New(Args&& ... arg)
+//    {
+//        class Wrapper final:public  T{
+//        public:
+//            explicit Wrapper(std::shared_ptr<MemoryAllocatorImpl> allc,Args&& ...arg)
+//                :T(std::forward<Args>(arg)...),ptr(allc)
+//            {
+//            }
+//
+//            ~Wrapper(){
+//                ptr->Release(sizeof(Wrapper));
+//            }
+//
+//        private:
+//            std::shared_ptr<MemoryAllocatorImpl> ptr;
+//        };
+//
+//        Release(sizeof(Wrapper));
+//        return new Wrapper(allocator_,std::forward(arg)...);
+//    }
+//
+
+//
+//
+//    //// the unique_ptr user deleter is a better choice
+//    template <typename T,typename ...Args>
+//    std::unique_ptr<T> make_unique(Args&&... args){
+//        return std::unique_ptr<T>(New<T,std::forward<Args>>(args)...);
+//    }
+    protected:
+        MemoryAllocatorImpl *getImpl(){
+            if(allocator_){
+                return allocator_.get();
+            }
+            return allocator_.get();
+        }
+
+        const MemoryAllocatorImpl *getImpl() const{
+            return allocator_.get();
+        }
+
+
 
     private:
         std::shared_ptr<MemoryAllocatorImpl> allocator_{nullptr};
 
     };
 
+    template<typename T>
+    class Vector
+        :public std::vector<T,crpc_event_engine::MemoryAllocator::Container<T>>
+    {
+    public:
+        explicit  Vector(MemoryAllocator* allocator)
+            :std::vector<T,crpc_event_engine::MemoryAllocator::Container<T>>
+             ( crpc_event_engine::MemoryAllocator::Container<T>{allocator->getImpl()})
+        {
 
-    template <typename T,typename ...Args>
-    std::unique_ptr<T> make_unique(Args&&... args){
-        return std::unique_ptr<T>(New<T,std::forward<Args>>(args)...);
-    }
+        }
 
+    };
+
+    class MemoryAllocatorFactory{
+    public:
+        virtual ~MemoryAllocatorFactory() = default;
+        virtual MemoryAllocator  MakeMemAllocatorByName(std::string_view name) = 0;
+    };
 
 
 }

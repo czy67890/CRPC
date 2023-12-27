@@ -18,11 +18,13 @@ class ThreadPool :public Forkable{
 
     virtual void Quit() = 0;
 
-    virtual void Run(std::function<void()>) = 0;
+    virtual void Run(std::function<void()> func) = 0;
 
-    virtual void Run();
+    virtual void Run(EventEngine::Closure* closure) = 0;
 
 };
+
+std::shared_ptr<ThreadPool> MakeThreadPool(size_t reserve_thread);
 
 
 }
