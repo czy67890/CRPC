@@ -7,7 +7,6 @@
 #include <functional>
 #include <cassert>
 #include "core/lib/slice/slice_refcount.h"
-#include "slice.h"
 #include "crpc/slice.h"
 
 static constexpr crpc_util::crpc_slice EmptySlice(){

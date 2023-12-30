@@ -65,8 +65,7 @@ namespace crpc_event_engine{
 
 
 
-        AutoThreadCounter MakeAutoThreadCounter(){
-            size_t idx  = NextIndex();
+        AutoThreadCounter MakeAutoThreadCounter(size_t idx){
             return AutoThreadCounter{this,idx};
         }
 
@@ -85,7 +84,7 @@ namespace crpc_event_engine{
         }
 
         size_t Count() const{
-            return std::accumulate(busy_counts_.begin(),busy_counts_.end(),0,[](size_t total,const CacheFilled &cacheFilled){
+            return (size_t) std::accumulate(busy_counts_.begin(),busy_counts_.end(),(size_t)0,[](size_t total,const CacheFilled &cacheFilled){
                 return total + cacheFilled.busy_count.load(std::memory_order_relaxed);
             });
         }
@@ -121,7 +120,6 @@ namespace crpc_event_engine{
 
             AutoThreadCounter& operator=(AutoThreadCounter &&rhs)noexcept{
                 counter_ = std::exchange(rhs.counter_,nullptr);
-
                 return *this;
             }
 

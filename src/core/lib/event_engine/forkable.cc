@@ -35,7 +35,7 @@ void crpc_event_engine::
 
 }
 
-void crpc_event_engine::ObjectGroupForkHandler::PrepFork()
+void crpc_event_engine::ObjectGroupForkHandler::Prefork()
 {
     if(IsForkEnable()){
 
@@ -43,7 +43,7 @@ void crpc_event_engine::ObjectGroupForkHandler::PrepFork()
                 iter != forkables_.end();){
             auto shared = iter->lock();
             if(shared){
-                shared->PrepFork();
+                shared->Prefork();
                 ++iter;
             }
             else{

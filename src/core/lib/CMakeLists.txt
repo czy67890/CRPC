@@ -1,6 +1,5 @@
-file(GLOB LIB_SRC *.cc */*.cc */*/*.cc)
-#设置库的输出路径
+file(GLOB LIB_SRC  event_engine/thread_pool/*.cc  *.cc */*.cc */*/*.cc)
+message("srclist ${LIB_SRC}")
 include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${PROJECT_SOURCE_DIR}/src)
-add_library(core_lib SHARED ${LIB_SRC}
-        event_engine/work_queue/basic_work_queue.h)
+add_library(core_lib  ${LIB_SRC})

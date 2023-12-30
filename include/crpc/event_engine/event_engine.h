@@ -103,7 +103,6 @@ public:
     class Listener{
     public:
 
-
         virtual ~Listener() = default;
 
         virtual int Bind(const ResolvedAddr& addr) = 0;

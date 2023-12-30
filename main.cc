@@ -2,18 +2,28 @@
 // Created by czy on 2023/12/24.
 //
 
-# include <pthread.h>
 #include <iostream>
+#include <thread>
 #include <string>
 #include <mutex>
 #include <assert.h>
+#include "core/lib/event_engine/thread_pool/thread_pool.h"
+
 using namespace std;
+std::atomic<int> val;
+void threadFunc(){
+    val++;
+    std::this_thread::sleep_for(3s);
+    std::cout<<"thread"<<std::this_thread::get_id()<<endl;
+}
 
 int main(){
-    std::mutex mu;
-    int valNeedProtected ;
-
-    // crpc_util::crpc_slice slice = crpc_util::crpc_slice{};
-    //std::string s{"hello my slice"};
+    cout<<"pc has "<<std::thread::hardware_concurrency()<<" core"<<endl;
+    auto  thread_pool = crpc_event_engine::MakeThreadPool(std::thread::hardware_concurrency());
+    for(int i = 0;i < 120;++i) {
+        thread_pool->Run(threadFunc);
+    }
+    thread_pool->Quit();
+    cout<<"all thing done "<<val.load()<<endl;
     return 0;
 }
