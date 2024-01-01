@@ -1,0 +1,238 @@
+//
+// Created by chenzeyu on 2024/1/1.
+//
+
+#ifndef CZYSERVER_ANY_INVOCABLE_H
+#define CZYSERVER_ANY_INVOCABLE_H
+#include <type_traits>
+#include <cstddef>
+#include <functional>
+
+template<class Sig>
+        class AnyInvocable;
+
+namespace internal_any_invocable{
+    enum StorageProperty :std::size_t {
+        kAlignment = alignof(std::max_align_t),
+        kStorageSize = sizeof(void * ) * 2
+    };
+
+    template <class T>
+    struct IsAnyInvocable :std::false_type {};
+
+    template <class Sig>
+    struct IsAnyInvocable<AnyInvocable<Sig>> :std::true_type {};
+
+    template <class T>
+    using IsStoredLocally = std::integral_constant<bool,sizeof(T) <= kStorageSize && alignof(T) <= kAlignment && kAlignment %
+                                                                                                                         alignof(T) == 0 && std::is_nothrow_move_constructible_v<T>>;
+    template<class T>
+    using RemoveCVRef = typename std::remove_cv<typename std::remove_reference<T>::type>::type ;
+
+    template <class ReturnType,class F,class ...P,typename = std::enable_if_t<std::is_void_v<ReturnType>>>
+    void InvokeR(F && f,P&& ... args){
+        std::invoke(std::forward<F>(f),std::forward<P>(args)...);
+    }
+
+    template <class ReturnType,class F,class ...P,std::enable_if_t<!std::is_void_v<ReturnType>,int> = 0>
+    ReturnType InvokeR(F && f,P && ... args){
+        return std::invoke(std::forward<F>(f),std::forward<P>(args)...);
+    }
+
+    template<typename T>
+    T ForwardImpl(std::true_type);
+
+    template<typename T>
+    T && ForwardImpl(std::false_type);
+
+    /// when the T is num or ptr or enum
+    /// we copy it
+    /// other_wise
+    /// we forward it
+    template<typename T>
+    struct ForwardedParameter{
+        using type = decltype((ForwardImpl<T>(std::integral_constant<bool,std::is_scalar_v<T>>())));
+    };
+
+    template<typename T>
+    using ForwardedParameterType = ForwardedParameter<T>::type;
+
+     enum class FunctionToCall:bool{
+            relocate_from_to,
+            dispose
+     };
+
+
+     /// a common optimize for small obj
+     union TypeEraseState{
+         struct {
+             void * target;
+             size_t size;
+         } remote;
+         alignas(kAlignment) char storage[kStorageSize];
+     };
+
+     template <class T>
+    T & ObjectInLocalStorage(TypeEraseState * const state){
+       return *std::launder(reinterpret_cast<T*>(state->storage));
+    }
+
+    using ManagerType = void(FunctionToCall ,TypeEraseState *from ,TypeEraseState * to) noexcept;
+
+     template<bool SigNoexcept,class ReturnType,class ... P>
+     using InvokerType = ReturnType(TypeEraseState *,ForwardedParameterType<P>...);
+
+     inline void EmptyManager(FunctionToCall,TypeEraseState* ,TypeEraseState *) noexcept{}
+
+     inline void LocalManagerTrivial(FunctionToCall,TypeEraseState *from,TypeEraseState *to)noexcept{
+         *to = *from;
+     }
+
+     template<class T>
+     void LocalManagerNontrivial(FunctionToCall operation,TypeEraseState * const from ,TypeEraseState * const to) noexcept{
+         static_assert(IsStoredLocally<T>::value,"Local storage must only be used for supported types.");
+         static_assert(!std::is_trivially_copyable_v<T>,"Locally stored types must be trivially copyable");
+
+         T& from_object = (ObjectInLocalStorage<T>(from));
+         switch(operation){
+             case FunctionToCall::relocate_from_to:
+                 ::new (static_cast<void*> (&to->storage)) T(std::move(from_object));
+                 [[fallthrough]];
+             case FunctionToCall::dispose:
+                from_object.~T();
+                return;
+         }
+     }
+
+     template <bool SigIsNoexcept,class ReturnType,class QualTRef,class ... P>
+     ReturnType LocalInvoker(TypeEraseState * const state,ForwardedParameterType<P>... args) noexcept(SigIsNoexcept){
+         using RawT = RemoveCVRef<QualTRef>;
+         static_assert(IsStoredLocally<RawT>::value,"target callable object must can be stored in local state");
+         auto & f = ObjectInLocalStorage<RawT>(state);
+         return (InvokeR<ReturnType>(static_cast<QualTRef>(f),static_cast<ForwardedParameterType<P>>(args)...));
+     }
+
+     inline void RemoteManagerTrivial(FunctionToCall operation,TypeEraseState * const from,TypeEraseState * const to) noexcept{
+         switch (operation) {
+             case FunctionToCall::relocate_from_to:
+                 to->remote = from->remote;
+                 return;
+             case FunctionToCall::dispose:
+                ::operator delete(from->remote.target,from->remote.size);
+                return;
+         }
+     }
+
+     template <typename T>
+     void RemoteManagerNontrivial(FunctionToCall operation,TypeEraseState *const from,TypeEraseState * const to ) noexcept{
+         switch(operation){
+             case FunctionToCall::relocate_from_to:
+                 to->remote = from->remote;
+                 return;
+             case FunctionToCall::dispose:
+                 ::delete static_cast<T*>(to->remote.target);
+                 return;
+         }
+     }
+
+     template <bool SigIsNoexcept,class ReturnType ,class QualType,class ...P>
+     ReturnType RemoteInvoker(TypeEraseState *const state,ForwardedParameterType<P>... args) noexcept{
+         using RawT = RemoveCVRef<QualType>;
+         static_assert(!IsStoredLocally<RawT>::value,"this must be called by the not local stored class");
+         auto &f = *static_cast<RawT*>(state->remote.target);
+         return (InvokeR<ReturnType>(static_cast<QualType>(f),static_cast<ForwardedParameterType<P>>(args)...));
+     }
+
+     template<class T>
+     struct IsInPlaceType :std::false_type {};
+
+     template<class T>
+     struct IsInPlaceType<std::in_place_type_t<T>> :std::true_type {};
+
+     template <class QualDecayedTRef>
+     struct TypedConversionConstruct{};
+
+     template<class Sig>
+     class Impl{};
+#if defined(__cpp_sized_deallocation)
+
+     class TrivialDeleter{
+     public:
+         explicit TrivialDeleter(std::size_t size)
+            :size_(size)
+         {
+         }
+
+         void operator()(void *target) const {
+             ::operator delete(target,size_);
+         }
+     private:
+         size_t size_;
+     };
+#else
+    class TrivialDeleter{
+     public:
+         explicit TrivialDeleter(std::size_t size)
+
+         {
+         }
+
+         void operator()(void *target) const {
+             ::operator delete(target);
+         }
+     private:
+     };
+
+    template<bool SigIsNoexpcet,class ReturnType,class ... P>
+    class CoreImpl;
+
+    constexpr bool IsCompatibleConVersion(void *,void *) {
+        return false;
+    }
+
+    template<bool NoExceptSrc,bool NoExceptDest,class ... T>
+    constexpr bool IsCompatibleConVersion(CoreImpl<NoExceptSrc,T...>*,
+                                          CoreImpl<NoExceptDest,T...>*){
+        return !NoExceptDest || NoExceptSrc;
+    }
+
+    template<bool SigIsNoexcept,class ReturnType,class ... P>
+    class CoreImpl{
+    public:
+        using result_type = ReturnType;
+
+        enum class TargetType{
+            kPointer,
+            kCompatibleAnyInvocable,
+            kIncompatibleAnyInvocable,
+            kOther
+        };
+
+        template<class >
+
+    private:
+
+    };
+#endif
+}
+
+
+
+
+
+template <class T>
+class AnyInvocable {
+private:
+    static_assert(std::is_function_v<T>,"this template argument must be a function type.");
+
+    using Impl = T;
+public:
+
+
+
+};
+
+
+
+
+#endif //CZYSERVER_ANY_INVOCABLE_H

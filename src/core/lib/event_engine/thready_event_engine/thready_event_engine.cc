@@ -10,8 +10,7 @@ namespace crpc_event_engine {
                                              std::unique_ptr<MemoryAllocatorFactory> mem_factory) {
         return impl_->CreateListener(
         [this,on_accept = std::make_shared<AcceptCallback>(std::move(acc_cb))](std::unique_ptr<EndPoint> endpoint,MemoryAllocator mem_alloc){
-            std::function<void()> cb = [std::move(endpoint)](){
-            };
+
         },
         );
     }
