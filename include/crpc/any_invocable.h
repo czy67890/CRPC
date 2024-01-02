@@ -206,29 +206,21 @@ namespace internal_any_invocable{
     }
 
 
-    template <typename Other>
-    struct IsCompatibleAnyInvocable{
-        static constexpr bool value{false};
-    };
 
-    template <typename Sig>
-    struct IsCompatibleAnyInvocable<AnyInvocable<Sig>>{
-        static constexpr bool value = (IsCompatibleConVersion)(static_cast<typename AnyInvocable<Sig>::CoreImpl*>(nullptr),
-        ///TODO:: here is a error i not know so far
-                                                               static_cast<int*>(nullptr)
-        );
-    };
+
     template<typename T>
     using HasTrivialRemoteStroage = std::integral_constant<bool,std::is_trivially_destructible<T>::value && alignof(T) <=
                                                                                                             alignof(std::max_align_t)>;
-
-
-
-
     template<bool SigIsNoexcept,class ReturnType,class ... P>
     class CoreImpl{
     public:
-        using result_type = ReturnType;
+        template <typename Other>
+        struct IsCompatibleAnyInvocable{
+            static constexpr bool value{false};
+        };
+
+
+    using result_type = ReturnType;
 
         enum class TargetType{
             kPointer,
@@ -247,7 +239,58 @@ namespace internal_any_invocable{
                                                 TargetType::kCompatibleAnyInvocable : IsAnyInvocable<DecayedT>::value ? TargetType::kIncompatibleAnyInvocable : TargetType::kOther);
 
 
+            Initializer<kTargetType,QualDecayedTRef>(std::forward<F>(f));
         }
+
+
+        template<class QualTRef,class ... Args>
+        explicit CoreImpl(std::in_place_type_t<QualTRef>,Args&& ... args){
+            InitializeStorage<QualTRef>(std::forward<Args>(args)...);
+        }
+
+        CoreImpl(CoreImpl && rhs) noexcept{
+            rhs.manager_(FunctionToCall::relocate_from_to,&rhs.state_,&state_);
+            manager_ = rhs.manager_;
+            invoker_ = rhs.invoker_;
+            rhs.manager_ = EmptyManager;
+            rhs.invoker_ = nullptr;
+        }
+
+        void Clear(){
+            manager_(FunctionToCall::dispose,&state_,&state_);
+            manager_  = EmptyManager;
+            invoker_ = nullptr;
+        }
+
+
+        CoreImpl& operator=(CoreImpl &&rhs) noexcept{
+            Clear();
+            rhs.manager_(FunctionToCall::relocate_from_to,&rhs.state_,&state_);
+            manager_ = rhs.manager_;
+            invoker_ = rhs.invoker_;
+            rhs.manager_ = EmptyManager;
+        }
+
+        template <class T ,typename = std::enable_if_t<std::is_trivially_copyable_v<T>>>
+        void InitializeLocalManager(){
+            manager_ = LocalManagerTrivial;
+        }
+
+        template<class T ,std::enable_if_t<!std::is_trivial_v<T>,int> = 0>
+        void InitializeLocalManager(){
+            manager_ = LocalManagerNontrivial<T>;
+        }
+
+        ~CoreImpl() noexcept{
+            manager_(FunctionToCall::dispose,&state_,&state_);
+        }
+
+
+        bool HasValue() const{
+            return invoker_ != nullptr;
+        }
+
+
 
         template <class T,class ...Args,typename = std::enable_if_t<HasTrivialRemoteStroage<T>::value>>
         void InitializeRemoteManager(Args&&... args){
@@ -271,8 +314,13 @@ namespace internal_any_invocable{
             invoker_ = RemoteInvoker<SigIsNoexcept,ReturnType,QualTRef,P...>;
         }
 
-
-
+        template <class QualTRef,class ... Args,typename = std::enable_if_t<IsStoredLocally<QualTRef>::value>>
+        void InitializeStorage(Args&&...  args){
+            using RawT = RemoveCVRef<QualTRef>;
+            ::new (static_cast<void *> (&state_.storage)) RawT (std::forward<Args>(args)...);
+            invoker_ = LocalInvoker<SigIsNoexcept,ReturnType,QualTRef,P...>;
+            InitializeLocalManager<RawT>();
+        }
 
         template <TargetType target_type,class QualDecayedTRef,class F,std::enable_if_t<target_type == TargetType::kPointer,int> = 0>
         void Initializer(F && f){
@@ -281,17 +329,45 @@ namespace internal_any_invocable{
                 invoker_ = nullptr;
                 return;
             }
+            InitializeStorage<QualDecayedTRef>(std::forward<F>(f));
         }
+
+        template <typename Sig>
+        struct IsCompatibleAnyInvocable<AnyInvocable<Sig>>{
+            static constexpr bool value = (IsCompatibleConVersion)(static_cast<typename AnyInvocable<Sig>::CoreImpl*>(nullptr),
+                                                               static_cast<CoreImpl*>(nullptr));
+        };
+
+
 
         TypeEraseState state_;
         ManagerType* manager_;
         InvokerType<SigIsNoexcept,ReturnType,P...>* invoker_;
     };
 
+    struct ConversionConstruct{
 
+    };
 
+    template <class T>
+    struct UnwrapStdReferenceWrapperImpl{
+        using type = T;
+    };
 
+    template <class T>
+    struct UnwrapStdReferenceWrapperImpl<std::reference_wrapper<T>>{
+        using type = T&;
+    };
 
+    template<class T >
+    using UnWrapStdReferenceWrapper = typename UnwrapStdReferenceWrapperImpl<T>::type;
+
+    template<class... T>
+    using TrueAlias = std::integral_constant<bool,sizeof(std::void_t<T...>*) != 0>;
+
+    template<class Sig,class F,typename = std::enable_if_t<!std::is_same_v<RemoveCVRef<F>,AnyInvocable<Sig>>>>
+    using CanConvert = TrueAlias<std::enable_if_t<!IsInPlaceType<RemoveCVRef<F>>::value>
+                                                    std::enable_if_t<Impl<Sig>>::template CallIsValid<F>::value,>                                                   ;
 }
 
 
