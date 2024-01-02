@@ -7,6 +7,8 @@
 #include <type_traits>
 #include <cstddef>
 #include <functional>
+#include <memory>
+
 
 template<class Sig>
         class AnyInvocable;
@@ -182,6 +184,9 @@ namespace internal_any_invocable{
          }
      private:
      };
+#endif
+
+
 
     template<bool SigIsNoexpcet,class ReturnType,class ... P>
     class CoreImpl;
@@ -190,11 +195,35 @@ namespace internal_any_invocable{
         return false;
     }
 
+
+
+
+
     template<bool NoExceptSrc,bool NoExceptDest,class ... T>
     constexpr bool IsCompatibleConVersion(CoreImpl<NoExceptSrc,T...>*,
                                           CoreImpl<NoExceptDest,T...>*){
         return !NoExceptDest || NoExceptSrc;
     }
+
+
+    template <typename Other>
+    struct IsCompatibleAnyInvocable{
+        static constexpr bool value{false};
+    };
+
+    template <typename Sig>
+    struct IsCompatibleAnyInvocable<AnyInvocable<Sig>>{
+        static constexpr bool value = (IsCompatibleConVersion)(static_cast<typename AnyInvocable<Sig>::CoreImpl*>(nullptr),
+        ///TODO:: here is a error i not know so far
+                                                               static_cast<int*>(nullptr)
+        );
+    };
+    template<typename T>
+    using HasTrivialRemoteStroage = std::integral_constant<bool,std::is_trivially_destructible<T>::value && alignof(T) <=
+                                                                                                            alignof(std::max_align_t)>;
+
+
+
 
     template<bool SigIsNoexcept,class ReturnType,class ... P>
     class CoreImpl{
@@ -208,12 +237,61 @@ namespace internal_any_invocable{
             kOther
         };
 
-        template<class >
+        template<class QualDecayedTRef,class F>
+        explicit CoreImpl(TypedConversionConstruct<QualDecayedTRef>,F && f){
+            using DecayedT = RemoveCVRef<QualDecayedTRef>;
 
-    private:
+            constexpr TargetType kTargetType = (std::is_pointer_v<DecayedT>||
+                                                std::is_member_pointer_v<DecayedT>
+                                                ) ? TargetType::kPointer : ((IsCompatibleAnyInvocable<DecayedT>::value) ?
+                                                TargetType::kCompatibleAnyInvocable : IsAnyInvocable<DecayedT>::value ? TargetType::kIncompatibleAnyInvocable : TargetType::kOther);
 
+
+        }
+
+        template <class T,class ...Args,typename = std::enable_if_t<HasTrivialRemoteStroage<T>::value>>
+        void InitializeRemoteManager(Args&&... args){
+            /// use unique_ptr only for the except safety
+            std::unique_ptr<void,TrivialDeleter> uninitialized_target(::operator new (sizeof(T)) , TrivialDeleter(sizeof(T)));
+            :: new (uninitialized_target.get())T(std::forward<Args>(args)...);
+            state_.remote.target =  uninitialized_target.release();
+            state_.remote.size = sizeof(T);
+            manager_ = RemoteManagerTrivial;
+        }
+
+        template <class T,class ...Args,std::enable_if_t<!HasTrivialRemoteStroage<T>::value,int> = 0>
+        void InitializeRemoteManager(Args&&... args){
+            state_.remote.target = ::new T(std::forward<Args>(args)...);
+            manager_ = RemoteManagerNontrivial<T>;
+        }
+
+        template <class QualTRef,class ... Args,std::enable_if_t<!IsStoredLocally<RemoveCVRef<QualTRef>>::value,int> = 0>
+        void InitializeStorage(Args&&...  args){
+            InitializeRemoteManager<RemoveCVRef<QualTRef>>(std::forward<Args>(args)...);
+            invoker_ = RemoteInvoker<SigIsNoexcept,ReturnType,QualTRef,P...>;
+        }
+
+
+
+
+        template <TargetType target_type,class QualDecayedTRef,class F,std::enable_if_t<target_type == TargetType::kPointer,int> = 0>
+        void Initializer(F && f){
+            if(static_cast<RemoveCVRef<QualDecayedTRef>> (f) == nullptr){
+                manager_ = EmptyManager;
+                invoker_ = nullptr;
+                return;
+            }
+        }
+
+        TypeEraseState state_;
+        ManagerType* manager_;
+        InvokerType<SigIsNoexcept,ReturnType,P...>* invoker_;
     };
-#endif
+
+
+
+
+
 }
 
 
