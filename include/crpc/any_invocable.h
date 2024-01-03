@@ -365,9 +365,47 @@ namespace internal_any_invocable{
     template<class... T>
     using TrueAlias = std::integral_constant<bool,sizeof(std::void_t<T...>*) != 0>;
 
+
+
+
+// #define CRPC_ANY_INVOCABLE_IMPL_(cv,ref,inv_qual,noex)
+    template<class ReturnType,class ...P>
+    class Impl<ReturnType(P...)>
+        /// TODO ::here need to add the define so we can
+        /// made the noexcept and except version
+        /// by the MACRO
+        :public CoreImpl<true,ReturnType,P...>{
+
+    public:
+        using Core = CoreImpl<true,ReturnType,P...>;
+        template <typename F>
+        using CallIsValid = TrueAlias<std::enable_if_t<std::disjunction_v<
+                std::is_invocable_r<ReturnType,std::decay_t<F>/* TODO :: HERE NEED MACRO*/>
+                ,std::is_same<ReturnType,std::invoke_result_t<std::decay_t<F> /* TODO :: HERE NEED MACRO*/>>
+        >>>;
+
+
+        template<typename F>
+        /// disjuction represent the meaning of OR while conjunction represent the AND
+        std::enable_if_t<std::disjunction<std::is_nothrow_invocable_r<ReturnType,UnWrapStdReferenceWrapper<std::decay_t<F>>
+        >,std::conjunction<std::is_nothrow_invocable<UnWrapStdReferenceWrapper<std::decay_t<F>>> >>,>
+
+
+        template <class F>
+        using CallIsNoexceptIfSigIsNoexcept = TrueAlias<>;
+    private:
+
+    };
+
+
+
+
+
+
+
     template<class Sig,class F,typename = std::enable_if_t<!std::is_same_v<RemoveCVRef<F>,AnyInvocable<Sig>>>>
     using CanConvert = TrueAlias<std::enable_if_t<!IsInPlaceType<RemoveCVRef<F>>::value>
-                                                    std::enable_if_t<Impl<Sig>>::template CallIsValid<F>::value,>                                                   ;
+                                                    std::enable_if_t<Impl<Sig>>::template CallIsValid<F>::value>                                                   ;
 }
 
 
