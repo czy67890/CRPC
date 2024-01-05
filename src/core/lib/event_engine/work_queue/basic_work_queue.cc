@@ -43,7 +43,7 @@ namespace crpc_event_engine{
     }
 
 
-    void BasicWorkQueue::Add(std::function<void()> func){
+    void BasicWorkQueue::Add(crpc_function::AnyInvocable<void()> func){
         auto closure = SlefDeleteingClosure::CreateSelfDeleteClosure(std::move(func));
         std::lock_guard<std::mutex> lk{mux_};
         que_.push_back(closure);

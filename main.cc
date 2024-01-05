@@ -7,9 +7,10 @@
 #include <string>
 #include <mutex>
 #include <assert.h>
+#include <unordered_set>
 #include "crpc/any_invocable.h"
 #include "core/lib/event_engine/thread_pool/thread_pool.h"
-
+#include "core/lib/cprpp/ref_count_ptr.h"
 using namespace std;
 std::atomic<int> val;
 void threadFunc(){
@@ -18,15 +19,22 @@ void threadFunc(){
     std::cout<<"thread"<<std::this_thread::get_id()<<endl;
 }
 
+class SomeClass{
+public:
+
+    void IncrementRefCount(){
+
+    }
+
+    void UnRef(){
+
+    }
+
+};
+
 int main(){
-    std::unique_ptr<int> ptr(new int(30));
-    std::array<int,40> arr{};
-    crpc_function::AnyInvocable<void()> func = [arr,ptr = std::move(ptr)](){
-        cout<<*ptr<<endl;
-        for(auto i : arr){
-            cout<<i<<endl;
-        }
-    };
-    func();
+    std::unordered_set<crpc_core::RefCountedPtr<SomeClass>> s;
+    auto res = crpc_core::MakeRefCounted<SomeClass>();
+    s.insert( res);
     return 0;
 }

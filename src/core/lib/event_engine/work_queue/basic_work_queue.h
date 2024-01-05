@@ -39,7 +39,7 @@ namespace crpc_event_engine{
 
         void Add(EventEngine::Closure *task) override;
 
-        void Add(std::function<void()> func) override;
+        void Add(crpc_function::AnyInvocable<void()> func) override;
 
         void* owner() override{
             return owner_;
