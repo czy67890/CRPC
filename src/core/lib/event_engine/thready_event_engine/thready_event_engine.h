@@ -23,7 +23,7 @@ namespace crpc_event_engine{
             :impl_(std::move(event_engine))
         {}
 
-        std::unique_ptr<Listener>  CreateListener(AcceptCallback acc_cb,std::function<void(Status)> on_shut_down
+        std::unique_ptr<Listener>  CreateListener(AcceptCallback acc_cb, crpc_function::AnyInvocable<void(Status)> on_shut_down
         ,std::unique_ptr<MemoryAllocatorFactory> mem_factory) override;
 
         ConnectionHandle Connect(OnConectionCallBack on_accept,const ResolvedAddr &addr,const EndPointConfig &config,MemoryAllocator alloc,Duration timeout) override;
@@ -39,11 +39,11 @@ namespace crpc_event_engine{
 
         void Run(Closure *closure) override;
 
-        void  Run(std::function<void()> func) override;
+        void  Run( crpc_function::AnyInvocable<void()> func) override;
 
         TaskHandle RunAfter(Duration when,Closure *closure) override;
 
-        TaskHandle RunAfter(Duration when,std::function<void()> func) override;
+        TaskHandle RunAfter(Duration when, crpc_function::AnyInvocable<void()> func) override;
 
         bool Cancel(TaskHandle handle) override;
 
@@ -67,7 +67,7 @@ namespace crpc_event_engine{
             ThreadyEventEngine *engine_;
         };
 
-        void Asynchronously(std::function<void()> fn);
+        void Asynchronously( crpc_function::AnyInvocable<void()> fn);
 
         std::shared_ptr<EventEngine> impl_;
     };

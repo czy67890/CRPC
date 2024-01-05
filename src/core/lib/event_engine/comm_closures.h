@@ -6,11 +6,12 @@
 #define CZYSERVER_COMM_CLOSURES_H
 #include <functional>
 #include "crpc/event_engine/event_engine.h"
+#include "crpc/any_invocable.h"
 namespace crpc_event_engine {
     class StdFuncClosure :
         public EventEngine::Closure{
     public:
-        explicit StdFuncClosure(std::function<void()> cb)
+        explicit StdFuncClosure( crpc_function::AnyInvocable<void()> cb)
             : innerFunc_(std::move(cb))
         {
 
@@ -23,14 +24,14 @@ namespace crpc_event_engine {
 
 
     private:
-        std::function<void()> innerFunc_;
+         crpc_function::AnyInvocable<void()> innerFunc_;
     };
 
     class SlefDeleteingClosure
         :public EventEngine::Closure
     {
     public:
-        static EventEngine::Closure* CreateSelfDeleteClosure(std::function<void()> func,std::function<void()> dest = std::function<void()>{})
+        static EventEngine::Closure* CreateSelfDeleteClosure( crpc_function::AnyInvocable<void()> func, crpc_function::AnyInvocable<void()> dest =  crpc_function::AnyInvocable<void()>{})
         {
             return static_cast<EventEngine::Closure*> (new SlefDeleteingClosure(std::move(func),std::move(dest)));
         }
@@ -51,7 +52,7 @@ namespace crpc_event_engine {
 
     private:
 
-        explicit SlefDeleteingClosure(std::function<void()> func,std::function<void()> dest = std::function<void()>{})
+        explicit SlefDeleteingClosure( crpc_function::AnyInvocable<void()> func, crpc_function::AnyInvocable<void()> dest =  crpc_function::AnyInvocable<void()>{})
             :func_(std::move(func)),dest_(std::move(dest))
         {
 
@@ -60,9 +61,9 @@ namespace crpc_event_engine {
 
 
 
-        std::function<void()> func_;
+         crpc_function::AnyInvocable<void()> func_;
         /// this func can be set ,when u need some action after run
-        std::function<void()> dest_;
+         crpc_function::AnyInvocable<void()> dest_;
     };
 
 }

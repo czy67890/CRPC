@@ -7,6 +7,7 @@
 #include <string>
 #include <mutex>
 #include <assert.h>
+#include "crpc/any_invocable.h"
 #include "core/lib/event_engine/thread_pool/thread_pool.h"
 
 using namespace std;
@@ -18,12 +19,14 @@ void threadFunc(){
 }
 
 int main(){
-    cout<<"pc has "<<std::thread::hardware_concurrency()<<" core"<<endl;
-    auto  thread_pool = crpc_event_engine::MakeThreadPool(std::thread::hardware_concurrency());
-    for(int i = 0;i < 120;++i) {
-        thread_pool->Run(threadFunc);
-    }
-    thread_pool->Quit();
-    cout<<"all thing done "<<val.load()<<endl;
+    std::unique_ptr<int> ptr(new int(30));
+    std::array<int,40> arr{};
+    crpc_function::AnyInvocable<void()> func = [arr,ptr = std::move(ptr)](){
+        cout<<*ptr<<endl;
+        for(auto i : arr){
+            cout<<i<<endl;
+        }
+    };
+    func();
     return 0;
 }

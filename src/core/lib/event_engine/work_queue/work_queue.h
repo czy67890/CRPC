@@ -22,7 +22,7 @@ namespace crpc_event_engine{
 
             virtual void Add(EventEngine::Closure *task) = 0;
 
-            virtual void Add(std::function<void()> func) = 0;
+            virtual void Add( crpc_function::AnyInvocable<void()> func) = 0;
 
 
             /// this is just a optional

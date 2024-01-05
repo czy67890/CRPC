@@ -5,13 +5,15 @@
 #include <functional>
 #include <vector>
 #include <sys/socket.h>
-
+#include "crpc/any_invocable.h"
 #include "non_copyable.h"
 #include "crpc/status.h"
 #include "crpc/slice.h"
 #include "crpc/event_engine/slice_buffer.h"
 #include "crpc/event_engine/mem_allocator.h"
 #include "crpc/event_engine/endpoint_condig.h"
+
+using crpc_function::AnyInvocable;
 using crpc_util::SliceBuffer;
 namespace crpc_event_engine{
 
@@ -78,7 +80,7 @@ public:
             int64_t read_hint_bytes;
         };
 
-        virtual void Read(std::function<void(Status)> on_read,SliceBuffer *buffer,const ReadArgs *args) = 0;
+        virtual void Read( crpc_function::AnyInvocable<void(Status)> on_read,SliceBuffer *buffer,const ReadArgs *args) = 0;
 
         struct WriteArgs{
 
@@ -88,7 +90,7 @@ public:
 
         };
 
-        virtual void Write(std::function<void(Status)> on_Write,SliceBuffer *buffer,const WriteArgs *write_arg) = 0;
+        virtual void Write( crpc_function::AnyInvocable<void(Status)> on_Write,SliceBuffer *buffer,const WriteArgs *write_arg) = 0;
 
         virtual const ResolvedAddr& GetPeerAddr() const = 0;
 
@@ -97,8 +99,8 @@ public:
         virtual void * QueryExtension(std::string_view id){return nullptr;}
     };
 
-    using OnConectionCallBack = std::function<void(std::unique_ptr<EndPoint>)>;
-    using AcceptCallback = std::function<void(std::unique_ptr<EndPoint>,MemoryAllocator)>;
+    using OnConectionCallBack =  crpc_function::AnyInvocable<void(std::unique_ptr<EndPoint>)>;
+    using AcceptCallback =  crpc_function::AnyInvocable<void(std::unique_ptr<EndPoint>,MemoryAllocator)>;
 
     class Listener{
     public:
@@ -117,7 +119,7 @@ public:
     /// second, what to do in shutdown
     /// last for the high performance network, we need a memory factory
     /// to manager the mem in use
-    virtual std::unique_ptr<Listener>  CreateListener(AcceptCallback acc_cb,std::function<void(Status)> on_shut_down
+    virtual std::unique_ptr<Listener>  CreateListener(AcceptCallback acc_cb, crpc_function::AnyInvocable<void(Status)> on_shut_down
                                                     ,std::unique_ptr<MemoryAllocatorFactory> mem_factory) = 0;
 
     virtual ConnectionHandle Connect(OnConectionCallBack on_accept,const ResolvedAddr &addr,const EndPointConfig &config,MemoryAllocator alloc,Duration timeout) = 0;
@@ -145,11 +147,11 @@ public:
             size_t weight;
         };
 
-        using LookupHostnameCallback = std::function<void(std::vector<ResolvedAddr>)>;
+        using LookupHostnameCallback =  crpc_function::AnyInvocable<void(std::vector<ResolvedAddr>)>;
 
-        using LookupSRVRecordCallback = std::function<void(std::vector<SRVRecord>)>;
+        using LookupSRVRecordCallback =  crpc_function::AnyInvocable<void(std::vector<SRVRecord>)>;
 
-        using LookupTXTCallback = std::function<void(std::vector<std::string>)>;
+        using LookupTXTCallback =  crpc_function::AnyInvocable<void(std::vector<std::string>)>;
 
         virtual void LookupHostname(LookupHostnameCallback on_lookup,std::string_view name,std::string_view default_port) = 0;
 
@@ -167,11 +169,11 @@ public:
 
     virtual void Run(Closure *closure) = 0;
 
-    virtual void  Run(std::function<void()> func) = 0;
+    virtual void  Run( crpc_function::AnyInvocable<void()> func) = 0;
 
     virtual TaskHandle RunAfter(Duration when,Closure *closure) = 0;
 
-    virtual TaskHandle RunAfter(Duration when,std::function<void()> func) = 0;
+    virtual TaskHandle RunAfter(Duration when, crpc_function::AnyInvocable<void()> func) = 0;
 
     virtual bool Cancel(TaskHandle handle) = 0;
 

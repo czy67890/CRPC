@@ -76,7 +76,7 @@ namespace crpc_function {
 // Helper macro used to prevent spelling `noexcept` in language versions older
 // than C++17, where it is not part of the type system, in order to avoid
 // compilation failures and internal compiler errors.
-#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L
+#if  __cplusplus >= 201703L
 #define ABSL_INTERNAL_NOEXCEPT_SPEC(noex) noexcept(noex)
 #else
 #define ABSL_INTERNAL_NOEXCEPT_SPEC(noex)
@@ -845,7 +845,7 @@ namespace crpc_function {
 
 // Define the `noexcept(true)` specialization only for C++17 and beyond, when
 // `noexcept` is part of the type system.
-#if ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L
+#if  __cplusplus >= 201703L
 // A convenience macro that defines specializations for the noexcept(true) and
 // noexcept(false) forms, given the other properties.
 #define ABSL_INTERNAL_ANY_INVOCABLE_IMPL(cv, ref, inv_quals)    \
