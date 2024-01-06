@@ -122,7 +122,7 @@ public:
     virtual std::unique_ptr<Listener>  CreateListener(AcceptCallback acc_cb, crpc_function::AnyInvocable<void(Status)> on_shut_down
                                                     ,std::unique_ptr<MemoryAllocatorFactory> mem_factory) = 0;
 
-    virtual ConnectionHandle Connect(OnConectionCallBack on_accept,const ResolvedAddr &addr,const EndPointConfig &config,MemoryAllocator alloc,Duration timeout) = 0;
+    virtual ConnectionHandle Connect(OnConectionCallBack on_connect,const ResolvedAddr &addr,const EndPointConfig &config,MemoryAllocator alloc,Duration timeout) = 0;
 
 
     virtual Status CancelConnect(ConnectionHandle handle) = 0;

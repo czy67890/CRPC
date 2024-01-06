@@ -273,7 +273,7 @@ namespace crpc_event_engine{
 
     WorkStealingThreadPool::ThreadState::ThreadState(std::shared_ptr<WorkStealingThreadPoolImpl> pool)
         :threadpool_impl_(std::move(pool)),
-        auto_thread_counter_(threadpool_impl_->GetLivingThreadCount()),
+        auto_thread_counter_(threadpool_impl_->GetLivingThreadCount()->MakeAutoThreadCounter()),
         backoff_(crpc_core::BackOff::Options{}),busy_count_index_(threadpool_impl_->GetBusyThreadCount()->NextIndex())
     {
 

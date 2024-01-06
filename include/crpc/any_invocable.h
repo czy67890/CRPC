@@ -24,7 +24,10 @@ namespace crpc_function {
         AnyInvocable() noexcept  = default;
 
         AnyInvocable(std::nullptr_t)  noexcept{
+
         }
+
+        ~AnyInvocable() = default;
 
         AnyInvocable(AnyInvocable &&rhs) noexcept = default;
 
@@ -56,6 +59,7 @@ namespace crpc_function {
 
         AnyInvocable& operator = (std::nullptr_t) noexcept{
             this->Clear();
+            return *this;
         }
 
         template<class F,typename = std::enable_if_t<internal_any_invocable::CanAssign<Sig,F>::value>>
@@ -70,7 +74,6 @@ namespace crpc_function {
             return *this;
         }
 
-        ~AnyInvocable() = default;
 
         void swap(AnyInvocable &other) noexcept{
             /// because of the noexcept move operator exist

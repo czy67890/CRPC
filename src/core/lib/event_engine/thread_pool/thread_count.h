@@ -161,7 +161,7 @@ namespace crpc_event_engine{
 
         size_t WaitForCountChange(size_t desire_thread_count,Duration timeout);
 
-        size_t living_thread_count_;
+        size_t living_thread_count_{0};
         mutable std::mutex mux_;
         std::condition_variable cond_var_;
     };

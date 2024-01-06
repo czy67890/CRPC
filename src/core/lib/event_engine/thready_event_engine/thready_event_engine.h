@@ -26,7 +26,7 @@ namespace crpc_event_engine{
         std::unique_ptr<Listener>  CreateListener(AcceptCallback acc_cb, crpc_function::AnyInvocable<void(Status)> on_shut_down
         ,std::unique_ptr<MemoryAllocatorFactory> mem_factory) override;
 
-        ConnectionHandle Connect(OnConectionCallBack on_accept,const ResolvedAddr &addr,const EndPointConfig &config,MemoryAllocator alloc,Duration timeout) override;
+        ConnectionHandle Connect(OnConectionCallBack on_connect,const ResolvedAddr &addr,const EndPointConfig &config,MemoryAllocator alloc,Duration timeout) override;
 
 
         Status CancelConnect(ConnectionHandle handle) override;

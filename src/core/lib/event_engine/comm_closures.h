@@ -51,15 +51,15 @@ namespace crpc_event_engine {
         }
 
     private:
+        /// this design is to avoid new
+        /// and stack obj
+
 
         explicit SlefDeleteingClosure( crpc_function::AnyInvocable<void()> func, crpc_function::AnyInvocable<void()> dest =  crpc_function::AnyInvocable<void()>{})
             :func_(std::move(func)),dest_(std::move(dest))
         {
 
         }
-
-
-
 
          crpc_function::AnyInvocable<void()> func_;
         /// this func can be set ,when u need some action after run

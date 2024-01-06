@@ -32,9 +32,13 @@ public:
 
 };
 
+void f(){
+
+}
+
 int main(){
-    std::unordered_set<crpc_core::RefCountedPtr<SomeClass>> s;
-    auto res = crpc_core::MakeRefCounted<SomeClass>();
-    s.insert( res);
+    crpc_function::AnyInvocable<void()> func{f};
+    auto ne = std::move(func);
+
     return 0;
 }
