@@ -7,7 +7,23 @@
 #include <chrono>
 
 namespace crpc_core{
-    using TimePoint = std::chrono::system_clock::time_point;
+    using TimePoint = std::chrono::steady_clock::time_point;
+
+    using Duration = std::chrono::steady_clock::duration;
+
+    Duration MinTimeGap(){
+        return Duration(1);
+    }
+
+    Duration FromSecondsAsDouble(const double seconds){
+        return Duration(uint64_t (seconds * 1e9));
+    }
+
+    TimePoint FromNanoSecondsAfterEpoch(uint64_t nanoseconds){
+        return TimePoint{} + Duration (nanoseconds);
+    }
+
+
 }
 
 

@@ -12,14 +12,19 @@
 #include <chrono>
 #include <mutex>
 
+
+#include "core/lib/event_engine/posix_event_engine/timer_heap.h"
+#include "non_copyable.h"
 #include "crpc/event_engine/event_engine.h"
 #include "core/lib/cprpp/timer.h"
+
+
 #include "core/lib/cprpp/time_averaged_stats.h"
 
 namespace crpc_event_engine{
 
     struct Timer{
-        int64_t deadline;
+        uint64_t deadline;
         size_t heap_index;
         bool pending;
         struct Timer * next;
@@ -41,16 +46,21 @@ namespace crpc_event_engine{
         ~TimerListHost() = default;
     };
 
-    class TimerList{
+    class TimerList :public crpc_core::NonCopyable{
 
     public:
+
+        explicit TimerList(TimerListHost *host);
+
+        void TimerInit(Timer * timer,crpc_core::TimePoint deadline,EventEngine::Closure *closure);
+
+        [[nodiscard]] bool TimerCancel(Timer *timer);
+
+        std::optional<std::vector<EventEngine::Closure*>> TimerCheck(crpc_core::TimePoint *next);
 
 
     private:
 
-        struct TimerHeap{
-
-        };
 
 
         struct Shard{
@@ -63,7 +73,7 @@ namespace crpc_event_engine{
 
             Timer* PopOne(crpc_core::TimePoint  now);
 
-            std::vector<EventEngine::Closure*> PopTimers(crpc_core::TimePoint now,crpc_core::TimePoint *new_deadline);
+            [[nodiscard]] std::vector<EventEngine::Closure*> PopTimers(crpc_core::TimePoint now,crpc_core::TimePoint &new_deadline);
 
             std::mutex mux;
             crpc_core::TimeAveragedStats stats;
@@ -73,6 +83,8 @@ namespace crpc_event_engine{
             TimerHeap heap;
             Timer list;
         };
+
+        void NoteDeadLineChange(Shard* shard);
 
     private:
         TimerListHost * const host_;

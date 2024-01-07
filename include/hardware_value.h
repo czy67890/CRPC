@@ -37,6 +37,11 @@ namespace crpc_hard_ware{
         static size_t kCacheLine(){
             return initer.kCacheLine;
         }
+
+        static size_t CpuNum(){
+            return std::thread::hardware_concurrency();
+        }
+
     private:
         static Initer initer;
     };
