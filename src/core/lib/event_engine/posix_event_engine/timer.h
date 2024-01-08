@@ -41,7 +41,7 @@ namespace crpc_event_engine{
 
         virtual void Kick() = 0;
 
-    private:
+    protected:
 
         ~TimerListHost() = default;
     };
@@ -85,6 +85,12 @@ namespace crpc_event_engine{
         };
 
         void NoteDeadLineChange(Shard* shard);
+
+        void SwapAdjacentShardsInQueue(uint32_t first_shard_queue_index);
+
+
+    private:
+        std::vector<EventEngine::Closure*> FindExpiredTimers(crpc_core::TimePoint now,crpc_core::TimePoint * next);
 
     private:
         TimerListHost * const host_;

@@ -23,6 +23,9 @@ namespace crpc_core{
         return TimePoint{} + Duration (nanoseconds);
     }
 
+    constexpr TimePoint InfFuture(){
+        return TimePoint {} + Duration (std::numeric_limits<uint64_t>::max());
+    }
 
 }
 

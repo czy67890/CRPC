@@ -129,7 +129,7 @@ namespace crpc_event_engine{
     void TimerList::TimerInit(Timer *timer, crpc_core::TimePoint deadline, EventEngine::Closure *closure) {
         bool is_first_timer = false;
         /// to make the load average as possible
-        Shard* shard = &shards_[std::hash<Timer*>()(timer) % num_shards_];
+        Shard* shard = shard_queue_[std::hash<Timer*>()(timer) % num_shards_];;
         timer->closure = closure;
         timer->deadline = deadline.time_since_epoch().count();
 
@@ -164,6 +164,99 @@ namespace crpc_event_engine{
                 }
             }
         }
+    }
+
+    void TimerList::NoteDeadLineChange(TimerList::Shard *shard) {
+        ///we swap the shard to the proper place
+        while(shard->shard_queue_index > 0 && shard->min_deadline < shard_queue_[shard->shard_queue_index - 1]->min_deadline){
+            SwapAdjacentShardsInQueue(shard->shard_queue_index - 1);
+        }
+
+        while(shard->shard_queue_index < num_shards_ - 1 && shard->min_deadline > shard_queue_[shard->shard_queue_index + 1]->min_deadline){
+            SwapAdjacentShardsInQueue(shard->shard_queue_index);
+        }
+
+    }
+
+    void TimerList::SwapAdjacentShardsInQueue(uint32_t first_shard_queue_index) {
+
+        Shard *temp = shard_queue_[first_shard_queue_index];
+        shard_queue_[first_shard_queue_index] = shard_queue_[first_shard_queue_index + 1];
+        shard_queue_[first_shard_queue_index + 1] = temp;
+        shard_queue_[first_shard_queue_index]->shard_queue_index = first_shard_queue_index;
+        shard_queue_[first_shard_queue_index + 1]->shard_queue_index = first_shard_queue_index + 1;
+
+    }
+
+    bool TimerList::TimerCancel(Timer *timer) {
+        Shard *shard = shard_queue_[std::hash<Timer*>()(timer) % num_shards_];
+        std::lock_guard<std::mutex> lk{shard->mux};
+
+        if(timer->pending){
+            timer->pending = true;
+            if(timer->heap_index == kInvalidHeapIndex){
+                ListRemove(timer);
+            }
+            else{
+                shard->heap.Remove(timer);
+            }
+
+            return true;
+        }
+        /// this timer is already be cancel
+        return false;
+    }
+
+    std::optional<std::vector<EventEngine::Closure *>> TimerList::TimerCheck(crpc_core::TimePoint *next) {
+        crpc_core::TimePoint now = host_->Now();
+
+         crpc_core::TimePoint min_timer = crpc_core::FromNanoSecondsAfterEpoch(min_timer_.load(std::memory_order_relaxed));
+
+         if(now < min_timer){
+             if(next != nullptr){
+                *next = std::min(*next,min_timer);
+             }
+             return std::vector<EventEngine::Closure*>();
+         }
+
+         std::unique_lock<std::mutex> lk{checker_mu_,std::defer_lock};
+
+         if(!lk.try_lock()){
+             return std::nullopt;
+         }
+         std::vector<EventEngine::Closure*> res = FindExpiredTimers(now,next);
+
+         return res;
+    }
+
+    std::vector<EventEngine::Closure *>
+    TimerList::FindExpiredTimers(crpc_core::TimePoint now, crpc_core::TimePoint *next) {
+        crpc_core::TimePoint  min_timer = crpc_core::FromNanoSecondsAfterEpoch(min_timer_.load(std::memory_order_relaxed));
+
+        std::vector<EventEngine::Closure*> done;
+        if(now < min_timer){
+            if(next != nullptr){
+                *next = std::min(*next,min_timer);
+
+            }
+            return done;
+        }
+
+        std::lock_guard<std::mutex> lk{mux_};
+
+        while(shard_queue_[0]->min_deadline < now || (now != crpc_core::InfFuture() && shard_queue_[0]->min_deadline == now)){
+            crpc_core::TimePoint new_min_deadline;
+            done = shard_queue_[0]->PopTimers(now,new_min_deadline);
+            shard_queue_[0]->min_deadline = new_min_deadline;
+            NoteDeadLineChange(shard_queue_[0]);
+        }
+
+        if(next){
+            *next = min(*next,shard_queue_[0]->min_deadline);
+        }
+
+        min_timer_.store(shard_queue_[0]->min_deadline.time_since_epoch().count(),std::memory_order_relaxed);
+        return done;
     }
 }
 
