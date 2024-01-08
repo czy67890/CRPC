@@ -97,15 +97,14 @@ namespace crpc_event_engine{
         }
     }
 
-    std::vector<EventEngine::Closure *>
-    TimerList::Shard::PopTimers(crpc_core::TimePoint now, crpc_core::TimePoint& new_deadline) {
-        std::vector<EventEngine::Closure *> res;
+
+    void TimerList::Shard::PopTimers(crpc_core::TimePoint now, crpc_core::TimePoint& new_deadline,std::vector<EventEngine::Closure*> &out) {
         std::lock_guard<std::mutex> lk{mux};
         while(Timer *timer = PopOne(now)){
-            res.push_back(timer->closure);
+            out.push_back(timer->closure);
         }
         new_deadline = ComputeDeadLine();
-        return res;
+
     }
 
     TimerList::TimerList(TimerListHost *host)
@@ -245,8 +244,9 @@ namespace crpc_event_engine{
         std::lock_guard<std::mutex> lk{mux_};
 
         while(shard_queue_[0]->min_deadline < now || (now != crpc_core::InfFuture() && shard_queue_[0]->min_deadline == now)){
+            ///when pop we refresh the min timer
             crpc_core::TimePoint new_min_deadline;
-            done = shard_queue_[0]->PopTimers(now,new_min_deadline);
+            shard_queue_[0]->PopTimers(now,new_min_deadline,done);
             shard_queue_[0]->min_deadline = new_min_deadline;
             NoteDeadLineChange(shard_queue_[0]);
         }

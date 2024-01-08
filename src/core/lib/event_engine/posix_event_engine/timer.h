@@ -73,7 +73,7 @@ namespace crpc_event_engine{
 
             Timer* PopOne(crpc_core::TimePoint  now);
 
-            [[nodiscard]] std::vector<EventEngine::Closure*> PopTimers(crpc_core::TimePoint now,crpc_core::TimePoint &new_deadline);
+            [[nodiscard]] void PopTimers(crpc_core::TimePoint now,crpc_core::TimePoint &new_deadline, std::vector<EventEngine::Closure*> &out);
 
             std::mutex mux;
             crpc_core::TimeAveragedStats stats;

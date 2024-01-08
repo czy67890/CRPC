@@ -21,7 +21,7 @@ namespace crpc_event_engine{
 
         ~TimerManager() override;
 
-        void TimerInit();
+        void TimerInit(Timer * timer,crpc_core::TimePoint dealline,EventEngine::Closure * closure);
 
         bool TimerCancel(Timer *timer);
 
@@ -56,7 +56,7 @@ namespace crpc_event_engine{
 
         void RunSomeTimers(std::vector<EventEngine::Closure*> funcs);
 
-        void WaitUntil();
+        bool WaitUntil(crpc_core::TimePoint next);
 
         void Kick();
 
