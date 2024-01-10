@@ -13,8 +13,11 @@
 #include <utility>
 #include <functional>
 
-
+#include "core/lib/promise/poll.h"
 #include "core/lib/cprpp/no_destruct.h"
+#include "core/lib/cprpp/orphanable.h"
+#include "core/lib/promise/context.h"
+
 
 namespace crpc_core{
 
@@ -150,11 +153,139 @@ namespace crpc_core{
     class IntraActivityWaiter{
     public:
 
+        Pending pending();
 
+        void Wake();
+
+        std::string DebugString() const;
+    private:
+        WakeupMask wakeups_{0};
     };
 
+    class Activity :public Orphanable{
+    public:
+
+        void ForceWakeup(){
+            MakeOwningWaker().Wakeup();
+        }
 
 
+        virtual void ForceImmediateRepoll(WakeupMask mask) = 0;
+
+        void ForceImmediateRepoll(){
+            ForceImmediateRepoll(CurrentParticipant());
+        }
+
+        virtual WakeupMask CurrentParticipant() const{return 1;}
+
+        static Activity* Current() {return g_current_actvity_;}
+
+        virtual Waker MakeOwningWaker() = 0;
+
+        virtual Waker MakeNonOwningWaker()  = 0;
+
+        virtual std::string DebugTag() const;
+
+
+    protected:
+
+        bool IsCurrent() const {
+            return this == g_current_actvity_;
+        }
+
+        static bool HaveCurrent(){
+            return g_current_actvity_ != nullptr;
+        }
+
+        class ScopedActivity{
+        public:
+            explicit ScopedActivity(Activity *activity)
+                :prior_activity_(g_current_actvity_)
+            {
+                g_current_actvity_ = activity;
+            }
+
+            ~ScopedActivity(){
+                g_current_actvity_ = prior_activity_;
+            }
+
+            ScopedActivity(const ScopedActivity &) = delete;
+
+            ScopedActivity& operator=(const ScopedActivity&) = delete;
+
+
+        private:
+            Activity *const prior_activity_;
+        };
+
+    private:
+
+        static thread_local Activity * g_current_actvity_;
+    };
+
+    using ActivityPtr = OrphanablePtr<Activity>;
+
+    namespace promise_detail{
+
+        template<typename Context>
+        class ContextHolder{
+        public:
+            using ContextType = Context;
+
+            explicit  ContextHolder(Context value)
+                :value_(std::move(value))
+            {}
+
+            Context *GetContext(){
+                return &value_;
+            }
+
+        private:
+            Context value_;
+        };
+
+        template<typename Context,typename Deleter>
+        class ContextHolder<std::unique_ptr<Context,Deleter>>
+        {
+        public:
+            using ContextType = Context;
+
+            explicit  ContextHolder(std::unique_ptr<Context,Deleter> value)
+                :value_(std::move(value))
+            {
+            }
+
+            Context *GetContext(){
+                return value_.get();
+            }
+
+        private:
+            std::unique_ptr<Context,Deleter> value_;
+        };
+
+        template<typename HeldContext>
+        using ContextTypeFromHeld = typename ContextHolder<HeldContext>::ContextType ;
+
+        template <typename ... Contexts>
+        class ActivityContexts:public ContextHolder<Contexts>...
+        {
+        public:
+            explicit  ActivityContexts(Contexts && ... contexts)
+                : ContextHolder<Contexts>(std::forward<Contexts>(contexts))...{}
+
+            class ScopedContext :public Context<ContextTypeFromHeld<Contexts>> ...{
+            public:
+                explicit ScopedContext(ActivityContexts * contexts)
+                    :Context<ContextTypeFromHeld<Contexts>>(static_cast<ContextHolder<Contexts> *>(contexts))...
+                {
+                    (void) contexts;
+                }
+            };
+        };
+
+
+
+    }
 }
 
 

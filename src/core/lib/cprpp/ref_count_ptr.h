@@ -75,7 +75,7 @@ namespace crpc_core{
             value_ = static_cast<T*>(rhs.value_);
         }
 
-        RefCountedPtr& operator = (const RefCountedPtr &rhs){
+        RefCountedPtr& operator= (const RefCountedPtr &rhs){
             RefCountedPtr tmp{rhs};
             swap(tmp);
             return *this;

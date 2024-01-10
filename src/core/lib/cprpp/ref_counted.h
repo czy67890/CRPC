@@ -139,13 +139,16 @@ namespace crpc_core{
 
         }
 
+    protected:
+        void IncrementRefCount() const{
+            refs_.Ref();
+        }
+
+
     private:
         template<typename T>
         friend class RefCountedPtr;
 
-        void IncrementRefCount() const{
-            refs_.Ref();
-        }
 
 
         mutable RefCount refs_;
