@@ -52,7 +52,7 @@ namespace crpc_core{
 
     template <typename T>
     class NoDestructSingletion{
-
+    public:
 
         static T *get(){
             return value.get();
