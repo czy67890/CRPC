@@ -57,7 +57,7 @@ namespace crpc_event_engine{
     void WorkStealingThreadPool::WorkStealingThreadPoolImpl::Run(EventEngine::Closure *closure) {
         assert(!quit_.load(std::memory_order_relaxed));
 
-        if(g_local_queue != nullptr &&  g_local_queue->owner() == this){
+        if((g_local_queue != nullptr) && g_local_queue->owner() == this){
             g_local_queue->Add(closure);
         }
         else{

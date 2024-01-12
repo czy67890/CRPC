@@ -283,7 +283,96 @@ namespace crpc_core{
             };
         };
 
+        class FreestandingActivity :public Activity,private Wakeable{
+        public:
 
+            Waker MakeOwningWaker() final{
+                Ref();
+                return Waker(this,0);
+            }
+
+            Waker MakeNonOwningWaker() final;
+
+            void Orphan() final{
+                Cancel();
+                Unref();
+            }
+
+            void ForceImmediateRepoll(WakeupMask) final{
+                SetActionDuringRun(ActionDuringRun::kWakeup);
+            }
+
+
+        protected:
+
+            enum class ActionDuringRun : uint8_t{
+                kNone,
+                kWakeup,
+                kCancel,
+            };
+
+            inline ~FreestandingActivity() override{
+                if(handle_){
+                    DropHandle();
+                }
+            }
+
+            ActionDuringRun GotActionDuringRun(){
+                return std::exchange(action_during_run_,ActionDuringRun::kNone);
+            }
+
+            void WakeupComplete(){
+                Unref();
+            }
+
+            void SetActionDuringRun(ActionDuringRun action){
+                action_during_run_ = std::max(action_during_run_,action);
+            }
+
+            std::mutex& Mutex()
+            {
+                return mux_;
+            }
+
+            std::string ActivityDebugTag(WakeupMask ) const override{
+                return DebugTag();
+            }
+
+        private:
+            class Handle;
+
+            virtual void Cancel() = 0;
+
+            void Ref(){
+                refs_.fetch_add(1,std::memory_order_relaxed);
+            }
+
+            void Unref(){
+                if(1 == refs_.fetch_sub(1,std::memory_order_acq_rel)){
+                    delete this;
+                }
+            }
+
+            Handle* RefHandle();
+
+            bool RefIfNonZero();
+
+            void DropHandle();
+
+            std::mutex mux_;
+            std::atomic<uint32_t> refs_{1};
+            ActionDuringRun action_during_run_ { ActionDuringRun::kNone};
+            Handle * handle_{nullptr};
+
+        };
+
+        template <class F,class WakeupScheduler,class OnDone,typename ... Contexts>
+        class PromiseActivity final:
+                public FreestandingActivity,
+    public WakeupScheduler::template
+        {
+
+        };
 
     }
 }
@@ -298,5 +387,5 @@ namespace std{
         }
     };
 }
-
+//uf
 #endif //CZYSERVER_ACTIVITY_H
