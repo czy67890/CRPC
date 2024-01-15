@@ -10,12 +10,13 @@
 #ifdef __cplusplus
     extern  "C" {
 #endif
-
     enum class crpc_log_severity{
         CRPC_LOG_SEVERITY_DEBUG,
         CRPC_LOG_SEVERITY_INFO,
-        CRPC_LOG_SEVERITY_ERROR
+        CRPC_LOG_SEVERITY_ERROR,
+        CRPC_LOG_SEVERITY_UNSET
     };
+
 
     const char * crpc_log_serverity_string(crpc_log_severity ser_level);
 

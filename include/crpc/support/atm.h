@@ -4,15 +4,18 @@
 
 #ifndef CZYSERVER_ATM_H
 #define CZYSERVER_ATM_H
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#include <cstdint>
+    typedef intptr_t crpc_atm;
+
+
 /** Adds \a delta to \a *value, clamping the result to the range specified
     by \a min and \a max.  Returns the new value. */
-gpr_atm gpr_atm_no_barrier_clamped_add(gpr_atm* value, gpr_atm delta,
-                                       gpr_atm min, gpr_atm max);
+    crpc_atm crpc_atm_no_barrier_clamped_add(crpc_atm* value, crpc_atm delta,
+                                         crpc_atm min, crpc_atm max);
 
 #ifdef __cplusplus
 }
