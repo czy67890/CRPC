@@ -42,6 +42,7 @@ struct crpc_closure {
     int line_initiated;
 
     std::string DebugString() const;
+
 };
 
 inline crpc_closure * crpc_closure_init(const char *file,int line,crpc_closure *closure,crpc_iomgr_cb_func cb,void *cb_arg){
@@ -97,14 +98,94 @@ namespace closure_impl{
     };
 
     inline void closure_wrapper(void *arg,Status error){
-
+        wrapped_closure *wc = static_cast<wrapped_closure*>(arg);
+        crpc_iomgr_cb_func cb = wc->cb;
+        void *wc_arg = wc->cb_arg;
+        free(wc);
+        cb(wc_arg,error);
     }
 }
 
+inline crpc_closure * crpc_closure_create(const char * file,int line,crpc_iomgr_cb_func cb,void *cb_arg){
+    closure_impl::wrapped_closure * wc = static_cast<closure_impl::wrapped_closure*>(malloc(sizeof(*wc)));
+    wc->cb = cb;
+    wc->cb_arg = cb_arg;
+    crpc_closure_init(file,line,&wc->wrapper,closure_impl::closure_wrapper,wc);
+    return &wc->wrapper;
+}
 
 
+#define CRPC_CLOSURE_CREATE(cb, cb_arg, scheduler) \
+  crpc_closure_create(__FILE__, __LINE__, cb, cb_arg)
+
+#define CRPC_CLOSURE_LIST_INIT {nullptr,nullptr}
+
+inline void crpc_closure_list_init(crpc_closure_list *closure_list){
+    closure_list->head = closure_list->tail = nullptr;
+}
 
 
+inline bool crpc_closure_list_append(crpc_closure_list * closure_list,crpc_closure *closure){
+    if(closure == nullptr){
+        return false;
+    }
+    closure->next_data.next = nullptr;
+    bool was_empty = (!closure_list->head);
+    if(was_empty){
+        closure_list->head = closure;
+    }
+    else{
+        closure_list->tail->next_data.next = closure;
+    }
+    closure_list->tail = closure;
+    return was_empty;
+}
+
+inline bool crpc_closure_list_append(crpc_closure_list * closure_list,crpc_closure *closure,Status error){
+    if(!closure){
+        return false;
+    }
+    closure->error_data.error = 1;
+    return crpc_closure_list_append(closure_list,closure);
+}
+
+inline void crpc_closure_list_fail_all(crpc_closure_list * list,Status status){
+    for(crpc_closure * c = list->head;c != nullptr;c = c->next_data.next){
+        if(c->error_data.error == 0){
+            c->error_data.error = 1;
+        }
+    }
+}
+
+inline void crpc_closure_list_move(crpc_closure_list *src,crpc_closure_list *dst){
+    if(src->head == nullptr){
+        return ;
+    }
+    if(dst->head == nullptr){
+        *dst = *src;
+    }
+    else{
+        dst->tail->next_data.next = src->head;
+        dst->tail = src->tail;
+    }
+    src->head = src->tail = nullptr;
+}
+
+inline bool crpc_closure_list_empty(crpc_closure_list closure_list){
+    return closure_list.head == nullptr;
+}
+
+namespace crpc_core{
+    class Closure{
+    public:
+        static void Run(crpc_closure * closure,Status error){
+            if(!closure){
+                return;
+            }
+            closure->cb(closure->cb_arg,error);
+            LOG_DEBUG<<"closure finished";
+        }
+    };
+}
 
 #endif //CZYSERVER_CLOSUREIO_H
-//uf
