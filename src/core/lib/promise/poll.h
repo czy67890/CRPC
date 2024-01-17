@@ -233,7 +233,7 @@ namespace crpc_core{
     };
 
     template <typename T>
-    bool operator==(const Poll<T> &lhs,const Poll<T> &rhs){
+    bool operator == (const Poll<T> &lhs,const Poll<T> &rhs){
         if(lhs.Pending() && rhs.Pending()){
             return true;
         }

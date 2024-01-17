@@ -47,14 +47,14 @@ namespace crpc_core{
 
 
     private:
-        alignas(sizeof(T)) char space_[sizeof(T)] ;
+        alignas(T) char space_[sizeof(T)] ;
     };
 
     template <typename T>
     class NoDestructSingletion{
     public:
 
-        static T *get(){
+        static T *Get(){
             return value.get();
         }
 
