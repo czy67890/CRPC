@@ -8,7 +8,7 @@
 #include <optional>
 #include "core/lib/iomgr/closure.h"
 #include "core/lib/cprpp/timer.h"
-
+#include "core/lib/cprpp/debug_location.h"
 
 typedef struct crpc_combiner crpc_combiner;
 
@@ -47,9 +47,9 @@ namespace crpc_core{
             return exec_ctx_;
         }
 
-        static void Run(crpc_closure *closure,Status error);
+        static void Run(const DebugLocation & debug_location,crpc_closure *closure,Status error);
 
-        static void RunList(crpc_closure_list* list);
+        static void RunList(const DebugLocation & debug_location,crpc_closure_list* list);
 
 
     protected:

@@ -88,4 +88,5 @@ private:
 
 #define DEBUG_LOCATION ::crpc_core::DebugLocation(__FILE__,__LINE__)
 }
+#endif
 #endif //CZYSERVER_DEBUG_LOCATION_H
