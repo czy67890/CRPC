@@ -150,6 +150,12 @@ namespace crpc_core{
             Set(this,flags_);
         }
 
+        explicit ApplicationCallbackExecCtx(uintptr_t f1)
+            :flags_(f1)
+        {
+            Set(this,flags_);
+        }
+
         ~ApplicationCallbackExecCtx(){
             if(Get() == this){
                 while(head_ != nullptr){
