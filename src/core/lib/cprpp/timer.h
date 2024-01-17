@@ -27,6 +27,9 @@ namespace crpc_core{
         return TimePoint {} + Duration (std::numeric_limits<uint64_t>::max());
     }
 
+    TimePoint Now(){
+        return std::chrono::steady_clock::now();
+    }
 }
 
 
