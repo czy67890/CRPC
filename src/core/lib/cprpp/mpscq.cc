@@ -5,6 +5,9 @@
 #include "core/lib/cprpp/mpscq.h"
 namespace crpc_core{
     bool MPSCQueue::Push(Node* node){
+        /// here use a very good skill
+        /// by exchange this read-modify-write op
+        /// make Push op safe and easy
         node->next.store(nullptr,std::memory_order_relaxed);
         Node *prev = head_.exchange(node,std::memory_order_acq_rel);
         prev->next.store(node,std::memory_order_release);

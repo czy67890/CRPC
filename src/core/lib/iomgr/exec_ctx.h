@@ -141,6 +141,8 @@ namespace crpc_core{
         uintptr_t flags_;
         std::optional<TimePoint> time_cache_;
         static thread_local ExecCtx * exec_ctx_;
+        /// the reason this can be safe is each thread run-stack
+        /// is single and certain
         ExecCtx *last_exec_ctx_ {Get()};
     };
 
