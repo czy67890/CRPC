@@ -145,14 +145,14 @@ inline bool crpc_closure_list_append(crpc_closure_list * closure_list,crpc_closu
     if(!closure){
         return false;
     }
-    closure->error_data.error = 1;
+    closure->error_data.error = (uintptr_t)error;
     return crpc_closure_list_append(closure_list,closure);
 }
 
 inline void crpc_closure_list_fail_all(crpc_closure_list * list,Status status){
     for(crpc_closure * c = list->head;c != nullptr;c = c->next_data.next){
         if(c->error_data.error == 0){
-            c->error_data.error = 1;
+            c->error_data.error = (uintptr_t)status;
         }
     }
 }

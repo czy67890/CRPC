@@ -18,6 +18,7 @@ typedef struct crpc_combiner crpc_combiner;
 namespace crpc_core{
 
     enum  ExecFlag{
+        kInitState = 0,
         kIsFinished = 1,
         kResourceLoop = 2,
         kInternalThread = 4

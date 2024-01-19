@@ -32,6 +32,9 @@ namespace crpc_core{
 
         void ForceOffload();
 
+
+        void PushLastOnExecCtx();
+
         Combiner * next_combiner_on_this_exec_ctx {nullptr};
 
         MPSCQueue queue;
@@ -45,7 +48,6 @@ namespace crpc_core{
         std::shared_ptr<crpc_event_engine::EventEngine> event_engine;
 
     private:
-        void PushLastOnExecCtx();
 
     };
 
@@ -65,7 +67,7 @@ namespace crpc_core{
 #define CRPC_COMBINER_UNREF(combiner, reason) crpc_combiner_unref((combiner))
 #endif
 
-crpc_core::Combiner * crpc_combiner_create(std::shared_ptr<crpc_event_engine::EventEngine> event_engine);
+
 
 crpc_core::Combiner* crpc_combiner_ref(crpc_core::Combiner *lock CRPC_COMBINER_DEBUG_ARGS);
 

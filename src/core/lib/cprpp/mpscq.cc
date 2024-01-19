@@ -8,6 +8,7 @@ namespace crpc_core{
         /// here use a very good skill
         /// by exchange this read-modify-write op
         /// make Push op safe and easy
+        /// this nullptr is must be set
         node->next.store(nullptr,std::memory_order_relaxed);
         Node *prev = head_.exchange(node,std::memory_order_acq_rel);
         prev->next.store(node,std::memory_order_release);
