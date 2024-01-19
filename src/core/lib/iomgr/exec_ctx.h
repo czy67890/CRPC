@@ -47,6 +47,8 @@ namespace crpc_core{
 
         virtual ~ExecCtx(){
             flags_ |= kIsFinished;
+            /// when have closure
+            /// we run it at des constructor
             Flush();
             Set(last_exec_ctx_);
             if( ! (flags_ & kInternalThread)){
