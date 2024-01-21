@@ -36,6 +36,11 @@ static void queue_offload(crpc_core::Combiner *combiner){
     });
 }
 
+static void really_destroy(crpc_core::Combiner *lock){
+    LOG_INFO<<"Combiner : "<<(void *)lock<<" really destroy";
+    delete lock;
+}
+
 bool crpc_combiner_continue_exec_ctx(){
     using namespace crpc_core;
     auto lock = ExecCtx::Get()->GetCombinerData().active_combiner;
@@ -43,19 +48,70 @@ bool crpc_combiner_continue_exec_ctx(){
         return false;
     }
     bool contented = lock->init_exec_ctx_or_null.load() == 0;
-
-
     ///TODO:: here can write more information
     LOG_INFO<<"Combiner :"<<(lock)<<"crpc_combiner_continue_ctx "
                                     "contended = "<<contented;
+
     if(contented && ExecCtx::Get()->IsReadyToFinish()){
         queue_offload(lock);
         return true;
     }
+    if(!lock->time_to_exec_final || (lock->state.load() >> 1) > 1){
+        MPSCQueue::Node * n = lock->queue.Pop();
+        LOG_INFO<<"Combiner :"<<(void *)lock<<"n = "<<n;
+        if(n == nullptr){
+            queue_offload(lock);
+            return true;
+        }
+        auto c = reinterpret_cast<crpc_closure*>(n);
+        c->scheduled = false;
+        Status error = static_cast<Status>(c->error_data.error);
+        c->error_data.error = 0;
+        c->cb(c->cb_arg,std::move(error));
+    }
+    else{
+        auto c = lock->final_list.head;
+        assert(c != nullptr);
+        crpc_closure_list_init(&lock->final_list);
+        int loops = 0;
+        while(c != nullptr){
+            LOG_INFO<<"Combiner : "<<(void *)lock<<"execute_final";
+            auto next = c->next_data.next;
+            c->scheduled = false;
+            Status error = static_cast<Status>(c->error_data.error);
+            c->error_data.error = 0;
+            c->cb(c->cb_arg,std::move(error));
+            c = next;
+        }
+    }
 
-    if(!lock->time_to_exec_final || ){
+    move_next();
+    lock->time_to_exec_final = false;
+    auto old_state = lock->state.fetch_add(-crpc_core::Combiner::kStateElemCountLowBit);
+    /// TODO ::here can log more information
+    LOG_INFO<<"Combiner :"<<(void *)lock<<"finish state ";
+
+#define OLD_STATE_WAS(orphaned,elem_count) \
+(((orphaned ) ? 0 : crpc_core::Combiner::kStateUnOrphaned) | \
+((elem_count)*crpc_core::Combiner::kStateElemCountLowBit))
+
+    switch(old_state){
+        default:
+            break;
+        case OLD_STATE_WAS(false,2):
+        case OLD_STATE_WAS(true,2):
+            if(!crpc_closure_list_empty(lock->final_list)){
+                lock->time_to_exec_final = true;
+            }
+            break;
+        case OLD_STATE_WAS(false,1):
+            return true;
+        case OLD_STATE_WAS(true,1):
+            really_destroy(lock);
 
     }
+    lock->PushLastOnExecCtx();
+    return true;
 }
 
 

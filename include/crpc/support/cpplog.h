@@ -38,6 +38,7 @@ namespace crpc_core{
 
 
         ~LogCore(){
+            stream_<<"\n";
             output_func_(std::move(*stream_.rdbuf()).str().c_str());
         }
 
